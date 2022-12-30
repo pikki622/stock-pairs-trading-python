@@ -82,35 +82,22 @@ class StockPairsTrading:
         )
         ma = (df[s1] / df[s2]).rolling(window=self.window, center=False).mean()
         df["zscore"] = (ma - state_means) / state_std
-        r = {}
-        r["date"] = df.index[-1].strftime("%Y-%m-%d")
-        r[
-            "{} {}".format(
-                s1,
-                self.column,
-            )
-        ] = df.iat[-1, Col.S1]
-        r[
-            "{} {}".format(
-                s2,
-                self.column,
-            )
-        ] = df.iat[-1, Col.S2]
+        r = {"date": df.index[-1].strftime("%Y-%m-%d")}
+        r[f"{s1} {self.column}"] = df.iat[-1, Col.S1]
+        r[f"{s2} {self.column}"] = df.iat[-1, Col.S2]
         r["zscore"] = df.iat[-1, Col.ZSCORE]
-        r["{} Buy".format(s1)] = df.iat[-1, Col.ZSCORE] < -1
-        r["{} Cover".format(s1)] = self._is_exit(df, -1)
-        r["{} Sell".format(s1)] = df.iat[-1, Col.ZSCORE] > 1
-        r["{} Short".format(s1)] = self._is_exit(df, -1)
-        r["{} Buy".format(s2)] = df.iat[-1, Col.ZSCORE] > 1
-        r["{} Cover".format(s2)] = self._is_exit(df, -1)
-        r["{} Sell".format(s2)] = df.iat[-1, Col.ZSCORE] < -1
-        r["{} Short".format(s2)] = self._is_exit(df, -1)
+        r[f"{s1} Buy"] = df.iat[-1, Col.ZSCORE] < -1
+        r[f"{s1} Cover"] = self._is_exit(df, -1)
+        r[f"{s1} Sell"] = df.iat[-1, Col.ZSCORE] > 1
+        r[f"{s1} Short"] = self._is_exit(df, -1)
+        r[f"{s2} Buy"] = df.iat[-1, Col.ZSCORE] > 1
+        r[f"{s2} Cover"] = self._is_exit(df, -1)
+        r[f"{s2} Sell"] = df.iat[-1, Col.ZSCORE] < -1
+        r[f"{s2} Short"] = self._is_exit(df, -1)
         return r
 
     def find_pairs(self, tickers: list) -> list:
-        columns = []
-        for i in tickers:
-            columns.append((self.column, i))
+        columns = [(self.column, i) for i in tickers]
         df = (
             yf.download(tickers, start=self.start, end=self.end)[columns]
             .set_axis(tickers, axis="columns")
@@ -126,7 +113,7 @@ class StockPairsTrading:
             cmap="RdYlGn_r",
             mask=(pvalues >= 0.05),
         )
-        plt.savefig("{}/pairs.png".format(self.outputs_dir_path))
+        plt.savefig(f"{self.outputs_dir_path}/pairs.png")
         plt.clf()
         plt.close()
         return pairs
@@ -156,9 +143,7 @@ class StockPairsTrading:
     ) -> dict:
         s1 = pair[0]
         s2 = pair[1]
-        path = "{}/{}-{}-{}-{}.pkl".format(
-            self.data_dir_path, s1, s2, self.start, self.end
-        )
+        path = f"{self.data_dir_path}/{s1}-{s2}-{self.start}-{self.end}.pkl"
         if os.path.isfile(path):
             df = pd.read_pickle(path)
         else:
@@ -246,18 +231,12 @@ class StockPairsTrading:
         plt.plot(
             df.index, df["s1Performance"].values + df["s2Performance"].values
         )
-        plt.legend(
-            [
-                s1,
-                s2,
-                "{} + {}".format(s1, s2),
-            ]
-        )
-        plt.savefig("{}/performance.png".format(self.outputs_dir_path))
+        plt.legend([s1, s2, f"{s1} + {s2}"])
+        plt.savefig(f"{self.outputs_dir_path}/performance.png")
         plt.clf()
         plt.close()
 
-        df.to_csv("{}/performance.csv".format(self.outputs_dir_path))
+        df.to_csv(f"{self.outputs_dir_path}/performance.csv")
         _, pvalue, _ = coint(df[s1], df[s2])
         score = df[s1].corr(df[s2])
         win_num = (df["s1Profit"] > 0).sum() + (df["s2Profit"] > 0).sum()
@@ -284,14 +263,14 @@ class StockPairsTrading:
         sharpe_ratio = (df["s1Profit"].mean() + df["s2Profit"].mean()) / (
             df["s1Profit"].std() + df["s2Profit"].std()
         )
-        r = {}
-        r["cointegration"] = pvalue
-        r["correlation"] = score
-        r["total_profit"] = total_profit
-        r["total_trades"] = total_trades
-        r["win_rate"] = win_rate
-        r["profit_factor"] = profit_factor
-        r["riskreward_ratio"] = riskreward_ratio
-        r["sharpe_ratio"] = sharpe_ratio
-        r["maximum_drawdown"] = mdd
-        return r
+        return {
+            "cointegration": pvalue,
+            "correlation": score,
+            "total_profit": total_profit,
+            "total_trades": total_trades,
+            "win_rate": win_rate,
+            "profit_factor": profit_factor,
+            "riskreward_ratio": riskreward_ratio,
+            "sharpe_ratio": sharpe_ratio,
+            "maximum_drawdown": mdd,
+        }
